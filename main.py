@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, messagebox
 import os
 import sys
 import pyperclip
@@ -72,6 +72,8 @@ class App:
         self.root = root
         self.root.title("文本转换工具 v1.0")
         self.root.geometry("1100x600")
+        self.root.minsize(900, 500)
+        self.root.protocol("WM_DELETE_WINDOW", self.root.destroy)
 
         # 加载功能映射
         self.func_map = load_functions()  # {模块名: 中文名称}
@@ -82,53 +84,115 @@ class App:
         self.default_cname = self.func_map.get(self.default_func, "dialogDL")
 
         # 创建UI
-        self.create_widgets()
+        try:
+            self.create_widgets()
+        except Exception as e:
+            messagebox.showerror("错误", f"界面初始化失败：\n{e}")
+            raise
 
     def create_widgets(self):
         """创建UI布局"""
-        # 左侧输入区
-        self.input_text = tk.Text(self.root, width=40, height=35, font=("Consolas", 12))
-        self.input_text.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
+        style = ttk.Style(self.root)
+        try:
+            style.theme_use("clam")
+        except tk.TclError:
+            pass
+        style.configure("TNotebook.Tab", padding=[12, 6])
 
-        # 中间输出区
-        self.output_text = tk.Text(self.root, width=40, height=35, font=("Consolas", 12))
-        self.output_text.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
+        notebook = ttk.Notebook(self.root)
+        notebook.pack(fill=tk.BOTH, expand=True)
 
-        # 右侧工具栏
-        right_frame = tk.Frame(self.root)
-        right_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        gen_tab = tk.Frame(notebook)
+        dict_tab = tk.Frame(notebook)
+        notebook.add(gen_tab, text="生成对话")
+        notebook.add(dict_tab, text="修改字典")
 
-        # 功能选择下拉框
+        self._build_generate_tab(gen_tab)
+        self._build_dict_tab(dict_tab)
+
+    def _build_generate_tab(self, parent):
+        main_frame = tk.Frame(parent)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        left_frame = tk.Frame(main_frame)
+        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        right_frame = tk.Frame(main_frame)
+        right_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=10, pady=5)
+
+        self.input_text = tk.Text(
+            left_frame, font=("Consolas", 12), bg="#f8f8f8", relief="solid", bd=1
+        )
+        self.output_text = tk.Text(
+            left_frame, font=("Consolas", 12), bg="#f8f8f8", relief="solid", bd=1
+        )
+        self.input_text.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        self.output_text.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+        left_frame.grid_rowconfigure(0, weight=1)
+        left_frame.grid_columnconfigure(0, weight=1)
+        left_frame.grid_columnconfigure(1, weight=1)
+
         tk.Label(right_frame, text="选择功能：", font=("微软雅黑", 12)).pack(pady=5)
         self.func_var = tk.StringVar()
-        func_cnames = list(self.func_map.values()) if self.func_map else []
+        func_order = ["dialogDL", "convertChat", "dialogXJ", "dialogXT"]
+        func_cnames = [self.func_map.get(key) for key in func_order if self.func_map.get(key)]
+        if not func_cnames:
+            func_cnames = list(self.func_map.values()) if self.func_map else []
         self.func_dropdown = ttk.Combobox(
-            right_frame,
-            textvariable=self.func_var,
-            values=func_cnames,
-            state="readonly",
-            width=18
+            right_frame, textvariable=self.func_var, values=func_cnames, state="readonly", width=18
         )
-        # 设置默认选中
         if self.default_cname in func_cnames:
             self.func_var.set(self.default_cname)
         elif func_cnames:
             self.func_var.set(func_cnames[0])
         self.func_dropdown.pack(pady=5)
 
-        # 功能按钮（移除了修改配置按钮）
         actions = [
             ("运行", self.run),
             ("清空输入", self.clear_input),
             ("清空输出", self.clear_output),
             ("复制输出", self.copy_output),
-            ("编辑表情词典", self.edit_emotion_dict),
-            ("顶流立绘", self.edit_portrait_dict),
-            ("退出", self.root.destroy),
         ]
         for text, func in actions:
             btn = tk.Button(right_frame, text=text, width=15, command=func)
             btn.pack(pady=5)
+
+    def _build_dict_tab(self, parent):
+        main_frame = tk.Frame(parent)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        left_frame = tk.Frame(main_frame)
+        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        right_frame = tk.Frame(main_frame)
+        right_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=10, pady=5)
+
+        self.dict_text = tk.Text(
+            left_frame, font=("Consolas", 11), bg="#f8f8f8", relief="solid", bd=1
+        )
+        self.dict_text.pack(fill=tk.BOTH, expand=True)
+
+        tk.Label(right_frame, text="选择字典：", font=("微软雅黑", 12)).pack(pady=5)
+        self.dict_var = tk.StringVar()
+        self.dict_options = {
+            "顶流降临立绘": {"module": "portrait_dict", "attr": "IMGS", "kind": "list"},
+            "情绪字典": {"module": "emotion_dict", "attr": "EMOTION_KEYWORDS", "kind": "dict"},
+            "仙劫一落立绘": {"module": "XJ_dict", "attr": "IMGS", "kind": "list"},
+            "系统那些年立绘": {"module": "XT_dict", "attr": "IMGS", "kind": "list"},
+        }
+        dict_labels = list(self.dict_options.keys())
+        self.dict_dropdown = ttk.Combobox(
+            right_frame, textvariable=self.dict_var, values=dict_labels, state="readonly", width=18
+        )
+        if dict_labels:
+            self.dict_var.set(dict_labels[0])
+        self.dict_dropdown.pack(pady=5)
+        self.dict_dropdown.bind("<<ComboboxSelected>>", lambda _e: self.load_dict())
+
+        tk.Button(right_frame, text="保存修改", width=15, command=self.save_dict).pack(pady=5)
+        tk.Button(right_frame, text="取消修改", width=15, command=self.load_dict).pack(pady=5)
+
+        self.load_dict()
 
     def run(self):
         """运行选中的功能（修正版）"""
@@ -183,32 +247,45 @@ class App:
 
         pyperclip.copy(output_text)
         messagebox.showinfo("成功", "已复制到剪贴板")
+    def load_dict(self):
+        label = self.dict_var.get()
+        if not label:
+            return
+        info = self.dict_options.get(label)
+        if not info:
+            return
+        module = importlib.import_module(info["module"])
+        data = getattr(module, info["attr"])
+        self.dict_text.delete("1.0", tk.END)
+        self.dict_text.insert(tk.END, json.dumps(data, ensure_ascii=False, indent=2))
 
-    def edit_emotion_dict(self):
-        """编辑表情词典（emotion_dict.py）"""
-        editor = tk.Toplevel(self.root)
-        editor.title("编辑表情词典")
-        editor.geometry("600x500")
-        editor.minsize(500, 400)
-
-        text = tk.Text(editor, font=("Consolas", 11))
-        text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        emotion_module = importlib.import_module("emotion_dict")
-        text.insert(tk.END, json.dumps(emotion_module.EMOTION_KEYWORDS, ensure_ascii=False, indent=2))
-
-        btn_frame = tk.Frame(editor)
-        btn_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
-
-        def save_dict():
-            raw = text.get("1.0", tk.END).strip()
-            try:
-                data = json.loads(raw)
+    def save_dict(self):
+        label = self.dict_var.get()
+        if not label:
+            return
+        info = self.dict_options.get(label)
+        if not info:
+            return
+        raw = self.dict_text.get("1.0", tk.END).strip()
+        try:
+            data = json.loads(raw)
+            if info["kind"] == "dict":
                 if not isinstance(data, dict):
                     raise ValueError("根节点必须是字典")
                 for key, value in data.items():
                     if not isinstance(value, list):
                         raise ValueError("每个表情必须对应数组")
-                file_path = os.path.join(FUNCTION_DIR, "emotion_dict.py")
+            else:
+                if not isinstance(data, list):
+                    raise ValueError("根节点必须是数组")
+                for item in data:
+                    if not isinstance(item, dict):
+                        raise ValueError("数组元素必须是对象")
+                    if "名称" not in item or "图片" not in item:
+                        raise ValueError("每个对象必须包含“名称”和“图片”字段")
+
+            file_path = os.path.join(FUNCTION_DIR, f"{info['module']}.py")
+            if info["kind"] == "dict":
                 file_content = (
                     "EMOTION_KEYWORDS = "
                     + json.dumps(data, ensure_ascii=False, indent=2)
@@ -222,53 +299,13 @@ class App:
                     + "                return emotion\n"
                     + "    return None\n"
                 )
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(file_content)
-                messagebox.showinfo("成功", "已保存表情词典")
-                editor.destroy()
-            except Exception as e:
-                messagebox.showerror("错误", f"保存失败：{e}")
-
-        tk.Button(btn_frame, text="保存", width=10, command=save_dict).pack(side=tk.RIGHT, padx=5)
-        tk.Button(btn_frame, text="取消", width=10, command=editor.destroy).pack(side=tk.RIGHT)
-
-    def edit_portrait_dict(self):
-        """编辑顶流立绘（portrait_dict.py）"""
-        editor = tk.Toplevel(self.root)
-        editor.title("编辑顶流立绘")
-        editor.geometry("700x550")
-        editor.minsize(600, 450)
-
-        text = tk.Text(editor, font=("Consolas", 11))
-        text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        portrait_module = importlib.import_module("portrait_dict")
-        text.insert(tk.END, json.dumps(portrait_module.IMGS, ensure_ascii=False, indent=2))
-
-        btn_frame = tk.Frame(editor)
-        btn_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
-
-        def save_dict():
-            raw = text.get("1.0", tk.END).strip()
-            try:
-                data = json.loads(raw)
-                if not isinstance(data, list):
-                    raise ValueError("根节点必须是数组")
-                for item in data:
-                    if not isinstance(item, dict):
-                        raise ValueError("数组元素必须是对象")
-                    if "名称" not in item or "图片" not in item:
-                        raise ValueError("每个对象必须包含“名称”和“图片”字段")
-                file_path = os.path.join(FUNCTION_DIR, "portrait_dict.py")
+            else:
                 file_content = "IMGS = " + json.dumps(data, ensure_ascii=False, indent=2) + "\n"
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(file_content)
-                messagebox.showinfo("成功", "已保存顶流立绘")
-                editor.destroy()
-            except Exception as e:
-                messagebox.showerror("错误", f"保存失败：{e}")
-
-        tk.Button(btn_frame, text="保存", width=10, command=save_dict).pack(side=tk.RIGHT, padx=5)
-        tk.Button(btn_frame, text="取消", width=10, command=editor.destroy).pack(side=tk.RIGHT)
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(file_content)
+            messagebox.showinfo("成功", "已保存字典")
+        except Exception as e:
+            messagebox.showerror("错误", f"保存失败：{e}")
 
 # ------------------------------
 # 程序入口

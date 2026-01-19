@@ -1,6 +1,6 @@
 import re
 from emotion_dict import detect_emotion
-from XT_dict import IMGS
+from XJ_dict import IMGS
 
 imgs = IMGS
 
@@ -18,10 +18,10 @@ def _has_future_speaker(parsed_lines, current_index, role_name, lookahead=5):
     return False
 
 
+##仙界
 def process(input_text):
     output = []
     img_name_map = {item["名称"]: item["图片"] for item in imgs}
-    length = 0
     lines = input_text.splitlines()
     parsed_lines = []
     for raw in lines:
@@ -86,38 +86,7 @@ def process(input_text):
 
     for index, raw in enumerate(lines):
         line = raw.strip()
-
-        # 处理以 `/` 开头的选项
-        if line.startswith("/"):
-            options = line[1:].split()
-            functions = []
-            option_group = []
-
-            for i, option in enumerate(options):
-                func_name = f"function{i + 1 + length}"
-                functions.append(f"async function {func_name}() {{\n\n}}")
-                option_group.append(
-                    f"{{ textContent: `{option}`, nResId: '$107970803', sResId: '$107970804', x: 640, y: {500 - i * 100}, clickFunc: {func_name}, }}"
-                )
-
-            length = length + i + 1
-
-            output.extend(functions)
-            output.append("await ac.createOptionGroup({")
-            output.append("  name: 'textOptionGroup2',")
-            output.append("  defaultComposition: false,")
-            output.append("  index: 0,")
-            output.append("  inlayer: 'window',")
-            output.append("  spacing: 60,")
-            output.append("  anchor: { x: 50, y: 50 },")
-            output.append("  clickAudio: { resId: '$51403', vol: 80 },")
-            output.append("  optionGroup: [")
-            output.append(",\n".join(option_group))
-            output.append("  ],")
-            output.append("});")
-
-        # 处理对话（【角色】文本）
-        elif line.startswith("【"):
+        if line.startswith("【"):
             match = re.match(r'【(.*?)】(.*)', line)
             if match:
                 role_name, content = match.groups()
@@ -136,7 +105,7 @@ def process(input_text):
 
                 if "你" in role_name:
                     output.append(
-                        f"await ac.sysDialogOn({{roleName: `{role_name}`,content: `{content}`,id: 4423935,hasRoleName: true,hasBg: true,hasRoleAvatar: true,roleAvatarResId: ac.var.p0,}});"
+                        f"await ac.sysDialogOn({{roleName: `{role_name}`,content: `{content}`,id: 3260426,hasRoleName: true,hasBg: true,hasRoleAvatar: true,roleAvatarResId: p0,}});"
                     )
                 else:
                     image_name = _resolve_image_name(role_name_clean, emotion_text)
@@ -172,7 +141,7 @@ def process(input_text):
                     else:
                         output.append(f"// 未知角色图片：{image_name}")
                     output.append(
-                        f"await ac.sysDialogOn({{roleName: `{role_name_clean}`,content: `{content}`,id: 4330204,hasRoleName: true,hasBg: true,hasRoleAvatar: false,}});"
+                        f"await ac.sysDialogOn({{roleName: `{role_name_clean}`,content: `{content}`,id: 2411524,hasRoleName: true,hasBg: true,hasRoleAvatar: false,}});"
                     )
                     if not _has_future_speaker(parsed_lines, index, role_name_clean):
                         obj_name = slot_by_speaker.get(role_name_clean)
@@ -181,22 +150,9 @@ def process(input_text):
                                 f"ac.remove({{\n  name: '{obj_name}',\n  effect: 'fadeout',\n  duration: 200,\n  canskip: true,\n}});"
                             )
                             _forget_speaker(role_name_clean)
-
-        # 处理普通旁白文本
         else:
             output.append(
-                f"await ac.sysDialogOn({{roleName: `旁白`,content: `{line}`,id: 4330203,hasRoleName: false,hasBg: true,hasRoleAvatar: false,}});"
+                f"await ac.sysDialogOn({{roleName: `旁白`,content: `{line}`,id: 2411532,hasRoleName: false,hasBg: true,hasRoleAvatar: false,}});"
             )
 
     return "\n".join(output)
-
-
-def process_file(filename, output_filename):
-    with open(filename, "r", encoding="utf-8") as file:
-        content = file.read()
-    result = process(content)
-    with open(output_filename, "w", encoding="utf-8") as output_file:
-        output_file.write(result)
-    with open(filename, "w", encoding="utf-8") as file:
-        file.truncate(0)
-
