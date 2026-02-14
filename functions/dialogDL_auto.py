@@ -54,6 +54,7 @@ def process(input_text):
     use_ancient = False
     active_speakers = []
     slot_by_speaker = {}
+    last_image_by_speaker = {}
 
     def _slot_name(role_name):
         if role_name not in slot_by_speaker:
@@ -64,6 +65,8 @@ def process(input_text):
     def _forget_speaker(role_name):
         if role_name in slot_by_speaker:
             del slot_by_speaker[role_name]
+        if role_name in last_image_by_speaker:
+            del last_image_by_speaker[role_name]
         if role_name in active_speakers:
             active_speakers.remove(role_name)
 
@@ -142,6 +145,8 @@ def process(input_text):
             match = re.match(r'【(.*?)】(.*)', line)
             if match:
                 role_name, content = match.groups()
+                display_role_name = role_name
+                display_content = content
                 role_name_clean = role_name
                 emotion_match = re.search(r'（(.*?)）', role_name)
                 emotion_text = emotion_match.group(1) if emotion_match else None
@@ -152,7 +157,6 @@ def process(input_text):
                     content_match = re.match(r'^（(.*?)）\s*(.*)', content)
                     if content_match:
                         content_emotion = content_match.group(1)
-                        content = content_match.group(2)
                         emotion_text = content_emotion
 
                 # 情况3：包含（你）和情绪词
@@ -161,21 +165,20 @@ def process(input_text):
                     emotion_match = re.search(r'（你）(\w+)', role_name)
                     if emotion_match:
                         emotion = emotion_match.group(1)
-                        role_name_cleaned = role_name.replace(emotion, "")  # 去掉情绪
                         output.append(
-                            f"await ac.sysDialogOn({{roleName: `{role_name_cleaned}`,content: `{content}`,id: 5494488,hasRoleName: true,hasBg: true,hasRoleAvatar: true,roleAvatarResId: currentCostume('{emotion}'),}});"
+                            f"await ac.sysDialogOn({{roleName: `{display_role_name}`,content: `{display_content}`,id: 5494488,hasRoleName: true,hasBg: true,hasRoleAvatar: true,roleAvatarResId: currentCostume('{emotion}'),}});"
                         )
                     else:
                         # 如果没找到情绪，说明还是现代剧本
                         # 如果没找到情绪，说明还是现代剧本
                         output.append(
-                            f"await ac.sysDialogOn({{roleName: `{role_name}`,content: `{content}`,id: 5494488,hasRoleName: true,hasBg: true,hasRoleAvatar: true,roleAvatarResId: ac.var.立绘,}});"
+                            f"await ac.sysDialogOn({{roleName: `{display_role_name}`,content: `{display_content}`,id: 5494488,hasRoleName: true,hasBg: true,hasRoleAvatar: true,roleAvatarResId: ac.var.立绘,}});"
                         )
 
                 # 情况1：刚好是“你”
                 elif role_name.strip() == "你":
                     output.append(
-                        f"await ac.sysDialogOn({{roleName: `{role_name}`,content: `{content}`,id: 5494488,hasRoleName: true,hasBg: true,hasRoleAvatar: true,roleAvatarResId: ac.var.立绘,}});"
+                        f"await ac.sysDialogOn({{roleName: `{display_role_name}`,content: `{display_content}`,id: 5494488,hasRoleName: true,hasBg: true,hasRoleAvatar: true,roleAvatarResId: ac.var.立绘,}});"
                     )
 
                 # 情况2：其他角色，无“你”
@@ -184,6 +187,8 @@ def process(input_text):
                     res_id = img_name_map.get(image_name)
                     if res_id:
                         obj_name = slot_by_speaker.get(role_name_clean)
+                        current_image = last_image_by_speaker.get(role_name_clean)
+                        needs_new_image = current_image != image_name
                         if not obj_name:
                             obj_name = _slot_name(role_name_clean)
                             pos_x = 640
@@ -200,10 +205,12 @@ def process(input_text):
                             output.append(
                                 f"ac.show({{\n  name: '{obj_name}',\n  effect: 'fadein',\n  duration: 300,\n  canskip: true,\n}});"
                             )
-                        else:
+                        elif needs_new_image:
                             output.append(
                                 f"await ac.createImage({{\n  name: '{obj_name}',\n  index: 0,\n  inlayer: 'window',\n  resId: '{res_id}',\n  pos: {{ x: {_speaker_pos(role_name_clean)}, y: 360 }},\n  anchor: {{ x: 50, y: 50 }},\n  opacity: 100,\n  scale: ac.var.立绘大小,\n  visible: true,\n  verticalFlip: false,\n  horizontalFlip: false,\n}});"
                             )
+                        if not obj_name or needs_new_image:
+                            last_image_by_speaker[role_name_clean] = image_name
                         if len(active_speakers) >= 2:
                             for other in active_speakers:
                                 other_obj = slot_by_speaker.get(other)
@@ -213,7 +220,7 @@ def process(input_text):
                     else:
                         output.append(f"// 未知角色图片：{image_name}")
                     output.append(
-                        f"await ac.sysDialogOn({{roleName: `{role_name_clean}`,content: `{content}`,id: 5603139,hasRoleName: true,hasBg: true,hasRoleAvatar: false,}});"
+                        f"await ac.sysDialogOn({{roleName: `{display_role_name}`,content: `{display_content}`,id: 5603139,hasRoleName: true,hasBg: true,hasRoleAvatar: false,}});"
                     )
                     if not _has_future_speaker(parsed_lines, index, role_name_clean):
                         obj_name = slot_by_speaker.get(role_name_clean)

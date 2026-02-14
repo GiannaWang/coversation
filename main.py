@@ -115,10 +115,12 @@ class App:
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         left_frame = tk.Frame(main_frame)
-        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
-
         right_frame = tk.Frame(main_frame)
-        right_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=10, pady=5)
+        left_frame.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        right_frame.grid(row=0, column=1, sticky="ns", padx=10, pady=5)
+        main_frame.grid_rowconfigure(0, weight=1)
+        main_frame.grid_columnconfigure(0, weight=1)
+        main_frame.grid_columnconfigure(1, weight=0)
 
         self.input_text = tk.Text(
             left_frame, font=("Consolas", 12), bg="#f8f8f8", relief="solid", bd=1
@@ -134,7 +136,7 @@ class App:
 
         tk.Label(right_frame, text="选择功能：", font=("微软雅黑", 12)).pack(pady=5)
         self.func_var = tk.StringVar()
-        func_order = ["dialogDL", "convertChat", "dialogXJ", "dialogXT"]
+        func_order = ["dialogDL", "dialogDL_auto", "convertChat", "dialogXJ", "dialogXT"]
         func_cnames = [self.func_map.get(key) for key in func_order if self.func_map.get(key)]
         if not func_cnames:
             func_cnames = list(self.func_map.values()) if self.func_map else []
@@ -162,10 +164,12 @@ class App:
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         left_frame = tk.Frame(main_frame)
-        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
-
         right_frame = tk.Frame(main_frame)
-        right_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=10, pady=5)
+        left_frame.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        right_frame.grid(row=0, column=1, sticky="ns", padx=10, pady=5)
+        main_frame.grid_rowconfigure(0, weight=1)
+        main_frame.grid_columnconfigure(0, weight=1)
+        main_frame.grid_columnconfigure(1, weight=0)
 
         self.dict_text = tk.Text(
             left_frame, font=("Consolas", 11), bg="#f8f8f8", relief="solid", bd=1
