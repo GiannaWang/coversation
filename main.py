@@ -2,15 +2,37 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import os
 import sys
-import pyperclip
 import importlib.util  # 显式导入util，确保Python版本≥3.4
 import importlib
 import json
+import shutil
 
 # ------------------------------
 # 路径设置与系统路径添加
 # ------------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# 开发时从源码目录读取；打包后从 exe 所在目录读取。
+# functions 中的字典允许在界面中修改，因此必须放在 exe 外部，不能放进
+# PyInstaller 的临时解压目录。
+if getattr(sys, "frozen", False) and sys.platform == "darwin":
+    # macOS 应用包通常不可写。首次启动时把可编辑资源复制到用户目录，
+    # 后续的字典修改也保存在这里，避免破坏 .app 或其签名。
+    BUNDLED_DIR = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    BASE_DIR = os.path.join(
+        os.path.expanduser("~/Library/Application Support"), "TextConverter"
+    )
+    os.makedirs(BASE_DIR, exist_ok=True)
+    bundled_functions = os.path.join(BUNDLED_DIR, "functions")
+    user_functions = os.path.join(BASE_DIR, "functions")
+    if not os.path.exists(user_functions):
+        shutil.copytree(bundled_functions, user_functions)
+    bundled_func_names = os.path.join(BUNDLED_DIR, "func_names.json")
+    user_func_names = os.path.join(BASE_DIR, "func_names.json")
+    if not os.path.exists(user_func_names):
+        shutil.copy2(bundled_func_names, user_func_names)
+elif getattr(sys, "frozen", False):
+    BASE_DIR = os.path.dirname(os.path.abspath(sys.executable))
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FUNCTION_DIR = os.path.join(BASE_DIR, "functions")
 # 将functions目录添加到系统路径（关键：解决模块导入问题）
 if FUNCTION_DIR not in sys.path:
@@ -136,7 +158,7 @@ class App:
 
         tk.Label(right_frame, text="选择功能：", font=("微软雅黑", 12)).pack(pady=5)
         self.func_var = tk.StringVar()
-        func_order = ["dialogDL", "dialogDL_auto", "convertChat", "dialogXJ", "dialogXT"]
+        func_order = ["dialogDL", "dialogDL_auto", "convertChat", "operaDL_auto","dialogXJ", "dialogXT", "npcEncounter", "npcChat"]
         func_cnames = [self.func_map.get(key) for key in func_order if self.func_map.get(key)]
         if not func_cnames:
             func_cnames = list(self.func_map.values()) if self.func_map else []
@@ -249,7 +271,9 @@ class App:
             messagebox.showwarning("提示", "输出区为空")
             return
 
-        pyperclip.copy(output_text)
+        self.root.clipboard_clear()
+        self.root.clipboard_append(output_text)
+        self.root.update()  # 让剪贴板内容在程序关闭后仍然保留
         messagebox.showinfo("成功", "已复制到剪贴板")
     def load_dict(self):
         label = self.dict_var.get()

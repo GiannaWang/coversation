@@ -5,6 +5,11 @@ from portrait_dict import IMGS
 
 imgs = IMGS
 
+SPECIAL_PORTRAIT_VARS = {
+    "助理": "ac.var.助理立绘",
+    "经纪人": "ac.var.经纪人立绘",
+}
+
 def _normalize_emotion_tag(emotion_text):
     return detect_emotion(emotion_text)
 
@@ -183,9 +188,12 @@ def process(input_text):
 
                 # 情况2：其他角色，无“你”
                 else:
-                    image_name = _resolve_image_name(role_name_clean, emotion_text, use_ancient)
-                    res_id = img_name_map.get(image_name)
+                    portrait_var = SPECIAL_PORTRAIT_VARS.get(role_name_clean)
+                    image_name = role_name_clean if portrait_var else _resolve_image_name(role_name_clean, emotion_text, use_ancient)
+                    res_id = portrait_var or img_name_map.get(image_name)
                     if res_id:
+                        # ac.var 是 JS 表达式，资源 ID 才需要字符串引号。
+                        res_id_expr = res_id if portrait_var else repr(res_id)
                         obj_name = slot_by_speaker.get(role_name_clean)
                         current_image = last_image_by_speaker.get(role_name_clean)
                         needs_new_image = current_image != image_name
@@ -200,14 +208,14 @@ def process(input_text):
                                     _gray_speaker(other_obj)
                                 pos_x = 880
                             output.append(
-                                f"await ac.createImage({{\n  name: '{obj_name}',\n  index: 0,\n  inlayer: 'window',\n  resId: '{res_id}',\n  pos: {{ x: {pos_x}, y: 360 }},\n  anchor: {{ x: 50, y: 50 }},\n  opacity: 100,\n  scale: ac.var.立绘大小,\n  visible: false,\n  verticalFlip: false,\n  horizontalFlip: false,\n}});"
+                                f"await ac.createImage({{\n  name: '{obj_name}',\n  index: 0,\n  inlayer: 'window',\n  resId: {res_id_expr},\n  pos: {{ x: {pos_x}, y: 360 }},\n  anchor: {{ x: 50, y: 50 }},\n  opacity: 100,\n  scale: ac.var.立绘大小,\n  visible: false,\n  verticalFlip: false,\n  horizontalFlip: false,\n}});"
                             )
                             output.append(
                                 f"ac.show({{\n  name: '{obj_name}',\n  effect: 'fadein',\n  duration: 300,\n  canskip: true,\n}});"
                             )
                         elif needs_new_image:
                             output.append(
-                                f"await ac.createImage({{\n  name: '{obj_name}',\n  index: 0,\n  inlayer: 'window',\n  resId: '{res_id}',\n  pos: {{ x: {_speaker_pos(role_name_clean)}, y: 360 }},\n  anchor: {{ x: 50, y: 50 }},\n  opacity: 100,\n  scale: ac.var.立绘大小,\n  visible: true,\n  verticalFlip: false,\n  horizontalFlip: false,\n}});"
+                                f"await ac.createImage({{\n  name: '{obj_name}',\n  index: 0,\n  inlayer: 'window',\n  resId: {res_id_expr},\n  pos: {{ x: {_speaker_pos(role_name_clean)}, y: 360 }},\n  anchor: {{ x: 50, y: 50 }},\n  opacity: 100,\n  scale: ac.var.立绘大小,\n  visible: true,\n  verticalFlip: false,\n  horizontalFlip: false,\n}});"
                             )
                         if not obj_name or needs_new_image:
                             last_image_by_speaker[role_name_clean] = image_name
