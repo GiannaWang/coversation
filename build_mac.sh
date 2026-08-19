@@ -16,7 +16,8 @@ rm -rf "$DIST_DIR" "$BUILD_DIR"
 mkdir -p "$RELEASE_DIR"
 rm -f "$ZIP_PATH"
 
-cd "$PROJECT_DIR"
+# 从项目父目录启动，避免根目录的 copy.py 遮蔽 Python 标准库 copy。
+cd "$(dirname "$PROJECT_DIR")"
 "$VENV_DIR/bin/python" -m PyInstaller \
   --noconfirm \
   --clean \
