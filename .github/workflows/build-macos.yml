@@ -1,5 +1,8 @@
 name: Build macOS app
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
   push:
@@ -27,3 +30,16 @@ jobs:
           name: TextConverter-macOS
           path: release/TextConverter-macOS.zip
           if-no-files-found: error
+
+      - name: Publish downloadable package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view macos-latest >/dev/null 2>&1; then
+            gh release upload macos-latest release/TextConverter-macOS.zip --clobber
+          else
+            gh release create macos-latest release/TextConverter-macOS.zip \
+              --target "$GITHUB_SHA" \
+              --title "TextConverter macOS" \
+              --notes "Automatically built macOS application package."
+          fi
