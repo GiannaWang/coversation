@@ -24,6 +24,13 @@ jobs:
       - name: Build app
         run: chmod +x build_mac.sh && ./build_mac.sh
 
+      - name: Launch app smoke test
+        run: |
+          open -n dist-mac/TextConverter.app
+          sleep 5
+          pgrep -x TextConverter
+          pkill -x TextConverter
+
       - name: Upload macOS package
         uses: actions/upload-artifact@v4
         with:
